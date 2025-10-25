@@ -1,0 +1,42 @@
+{
+  "name": "agentic-podcast-system",
+  "version": "1.0.0",
+  "description": "Standalone multi-agent podcast generation system with web research capabilities",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node cli/index.js",
+    "generate": "node cli/index.js generate",
+    "test-agent": "node cli/index.js test-agent",
+    "test-search": "node cli/index.js test-search",
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js"
+  },
+  "keywords": [
+    "podcast",
+    "agents",
+    "ai",
+    "content-generation",
+    "langchain",
+    "multi-agent"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@langchain/openai": "^0.3.14",
+    "@langchain/core": "^0.3.23",
+    "langchain": "^0.3.7",
+    "cheerio": "^1.0.0",
+    "commander": "^12.1.0",
+    "dotenv": "^16.4.5",
+    "ora": "^8.1.1",
+    "chalk": "^5.3.0",
+    "node-fetch": "^3.3.2"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
+
