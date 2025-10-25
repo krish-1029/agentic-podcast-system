@@ -2,7 +2,7 @@
 
 A production-ready **multi-agent podcast generation system** that uses specialized AI agents to research different topics and synthesize them into cohesive, personalized podcast scripts.
 
-## 🎯 Key Features
+## Key Features
 
 - **Multi-Agent Architecture**: Specialized agents for different content domains (tech, finance, F1, science, etc.)
 - **Web Research**: Real-time web search and article scraping for current information
@@ -11,7 +11,7 @@ A production-ready **multi-agent podcast generation system** that uses specializ
 - **Production Patterns**: Retry logic, exponential backoff, timeout handling, structured logging
 - **Optional Audio Generation**: Text-to-speech via ElevenLabs (optional)
 
-## 🏗️ Architecture (Updated)
+## Architecture (Updated)
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -55,14 +55,14 @@ A production-ready **multi-agent podcast generation system** that uses specializ
                 └───────────────┘
 ```
 
-## 📋 Prerequisites
+## Prerequisites
 
 - **Node.js** 18.0.0 or higher
 - **OpenAI API Key** (required) - Get one at [platform.openai.com](https://platform.openai.com)
 - **Tavily API Key** (recommended) - Get free tier at [tavily.com](https://tavily.com)
 - **ElevenLabs API Key** (optional) - Only needed for audio generation
 
-## 🚀 Quick Start
+## Quick Start
 
 ### 1. Installation
 
@@ -105,7 +105,7 @@ npm start generate -- --channels tech --requests "latest AI models" --duration 7
 npm start generate -- --channels tech,f1 --duration 5 --audio
 ```
 
-## 📖 Usage Examples
+## Usage Examples
 
 ### List Available Channels
 
@@ -151,7 +151,7 @@ npm start generate -- --channels science --setting wind_down
 # Available settings: morning_routine, workout, commute, wind_down, focus_work, learning
 ```
 
-## 🧪 Testing
+## Testing
 
 ### Test Web Search
 ```bash
@@ -168,7 +168,7 @@ npm start test-agent -- --channel tech
 npm start generate -- --channels tech --duration 3 --deterministic
 ```
 
-## 🏛️ Architecture Details
+## Architecture Details
 
 ### Research Modes
 
@@ -218,7 +218,7 @@ Planner + Writer synthesizes:
 - **Ora**: CLI spinners and progress
 - **Chalk**: Terminal styling
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 agentic-podcast-system/
@@ -258,7 +258,7 @@ agentic-podcast-system/
 └── tests/                # Tests (future)
 ```
 
-## 🎛️ Configuration
+## Configuration
 
 All configuration via environment variables in `.env`:
 
@@ -287,14 +287,14 @@ CIRCUIT_BREAKER_THRESHOLD=3        # Failures before opening
 CIRCUIT_BREAKER_TIMEOUT_MS=60000   # 60 seconds cooldown
 ```
 
-## 📊 Output
+## Output
 
 Generated podcasts are saved to `output/<timestamp>/`:
 - `script.txt` - Final podcast script
 - `agent-reports.json` - Raw agent reports (for debugging)
 - `podcast.mp3` - Audio file (if --audio flag used)
 
-## 🎓 Learning Resources
+## Learning Resources
 
 This project demonstrates:
 - **Multi-agent systems**: Coordination of specialized AI agents
@@ -305,15 +305,15 @@ This project demonstrates:
 
 See `docs/ARCHITECTURE.md` for detailed architecture documentation.
 
-## 🤝 Contributing
+## Contributing
 
 This is a portfolio/demo project, but suggestions and improvements are welcome!
 
-## 📄 License
+## License
 
 MIT
 
-## 🙋 Questions?
+## Questions?
 
 Built as a demonstration of production-ready agentic systems with proper software engineering practices.
 

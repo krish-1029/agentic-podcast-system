@@ -465,14 +465,95 @@ npm start generate -- --channels tech --duration 3 --deterministic
    - Improve prompts based on feedback
    - Personalization over time
 
+## Roadmap: Production-Grade Improvements
+
+### Near-term
+
+- **Default to deterministic mode** and keep ReAct behind a flag; vendor a local ReAct prompt if retained.
+- **Structured I/O everywhere**: enforce JSON Schema (Zod/TypeBox) for planner and writer; validate/repair before use.
+- **Metrics & observability**: capture per-stage latency, token usage, tool counts, cache hits; persist next to `agent-reports.json`.
+- **Eval suite (smoke-level)**:
+  - Planner JSON schema golden tests.
+  - Writer length adherence and no-repeat checks.
+  - Grounding checks: facts require source citations present in scraped content.
+- **Container & CI**: Dockerfile; GitHub Actions for lint/tests/build; example `docker run` in README.
+
+### Short-term
+
+- **Replace ReAct with native function-calling** (OpenAI tool calling) to call `search`/`scrape` directly; remove `DynamicTool`/Hub dependencies.
+- **TypeScript migration** for `orchestrator`, `synthesis`, and `tools` to gain compile-time safety.
+- **Persistent cache/content store**: cache search/scrape by (query/url, date); enable idempotent reruns and cost savings.
+- **Security posture**: robots.txt awareness, optional domain allowlist, basic rate limiting and polite crawling headers.
+- **Minimal web UI**: select channels/setting, preview plan/sections, one-click audio; keeps CLI for power users.
+- **Audio pipeline**: parallelize TTS chunks with a small concurrency cap; loudness normalization; silence trimming; optional SSML/ElevenLabs v3 tag validation prior to TTS.
+
+### Medium-term
+
+- **Deployment story**: one-click deploy (Render/Fly/Heroku) or serverless job runner for scheduled shows.
+- **Content provenance**: attach per-sentence citations in the script; clickable links in UI.
+- **Human-in-the-loop editing**: lock/modify plan sections and re-generate only impacted parts.
+- **Cost controls**: token budgeting per stage; adaptive length planning based on budget.
+
+## LangChain: Usage, Critique, and Migration Plan
+
+### Current usage
+
+- **ReAct agent** initialized via Hub prompt and `createReactAgent` in `BaseAgent`.
+- **Tool wrappers** implemented as `DynamicTool` for `web_search` and `scrape_article` with budget caps.
+
+### Friction points
+
+- **Prompt drift**: depends on `hwchase17/react` from the Hub; behavior can change outside our control.
+- **Opaque loops**: budget/timeouts needed to bound agent iterations; variable latency and outcomes.
+- **Stringly-typed tools**: JSON-in-strings increases parsing brittleness and error handling overhead.
+- **Overlap of concerns**: our retries/timeouts/circuit breakers duplicate parts of LangChain, risking conflicts.
+
+### Migration plan
+
+1. **Vendor prompt locally** if ReAct is kept; tune for our tool budgets and grounding constraints.
+2. **Introduce native function-calling** for `search` and `scrape`; remove `DynamicTool` glue.
+3. **Schema-first contracts**: planner and writer operate in JSON mode with schema validation.
+4. **De-scope LC** to optional experimentation path; deterministic + function-calling path becomes the default.
+
+Status: deterministic path already implemented; function-calling agent is a targeted near-term replacement for ReAct.
+
+## Podcast Quality Evaluation Strategy (Idea)
+
+### Pillars of a Great Podcast (framework)
+
+- **Accuracy & grounding**: verifiable facts with linked sources; no fabrication.
+- **Structure & flow**: clear narrative arc, purposeful sections, smooth transitions.
+- **Voice & tone**: matches setting (e.g., morning routine vs. wind-down); consistent persona.
+- **Pacing & length**: adheres to target minutes and per-section word budgets; avoids rambling.
+- **Variety & novelty**: coverage diversity (topics/sources); avoids repetition.
+- **Actionability & clarity**: specific takeaways, numbers, dates; avoids vague generalities.
+- **Safety & compliance**: respectful language; domain TOS considerations; no sensitive PII.
+- **Audio expression**: appropriate use of ElevenLabs v3 tags for emphasis/pauses and clarity.
+
+### Agent-based judge (automated evals)
+
+1. Train a rubric using the Pillars by analyzing a corpus of high-quality podcasts (transcripts and audio).
+2. Build an evaluator agent that:
+   - Scores each pillar (0–5) with brief justifications and cited evidence (URLs/timecodes).
+   - Checks grounding: every factual claim maps to a scraped excerpt or is labeled uncertain.
+   - Verifies pacing: target words vs. actual words; section-level deviations flagged.
+   - Reviews audio tags: flags missing or overused emphasis/pauses.
+3. Output an **Eval Report** JSON with per-pillar scores, overall score, and remediation suggestions.
+
+### Operationalizing evals
+
+- **Regression gates**: PRs must not reduce overall score or grounding score beyond thresholds.
+- **Golden sets**: a small curated set of topics with expected eval ranges to detect drift.
+- **Telemetry**: store eval reports alongside artifacts; track trends over time.
+
 ## Conclusion
 
 This architecture demonstrates:
-- ✅ Clean separation of concerns
-- ✅ Production-ready reliability patterns
-- ✅ Extensible design
-- ✅ Clear data flow
-- ✅ Graceful error handling
+- Clean separation of concerns
+- Production-ready reliability patterns
+- Extensible design
+- Clear data flow
+- Graceful error handling
 
 Perfect for showcasing in technical interviews or portfolio reviews.
 

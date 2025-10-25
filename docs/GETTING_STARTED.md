@@ -91,10 +91,10 @@ npm start generate -- --channels tech --duration 3 --deterministic
 ```
 
 **What happens (deterministic):**
-1. ✨ Per-channel research: date-stamped search → scrape first accessible result(s) → summarize
-2. 🧭 Planner produces JSON plan (saved as plan + planRaw in agent-reports.json)
-3. ✍️ Section Writer iterates through plan to write the script
-4. 💾 Saves to `output/<timestamp>/script.txt`
+1. Per-channel research: date-stamped search → scrape first accessible result(s) → summarize
+2. Planner produces JSON plan (saved as plan + planRaw in agent-reports.json)
+3. Section Writer iterates through plan to write the script
+4. Saves to `output/<timestamp>/script.txt`
 
 This should take about 30-45 seconds.
 
@@ -245,17 +245,17 @@ Use exact channel IDs like: `tech`, `finance`, `f1`, `science`, `world_news`
 ### 3. Custom Requests
 
 Be specific:
-- ❌ Bad: "tech"
-- ✅ Good: "GPT-5 release, Apple Vision Pro reviews"
+- Bad: "tech"
+- Good: "GPT-5 release, Apple Vision Pro reviews"
 
 ### 4. Settings Match Use Case
 
-- 🌅 **morning_routine**: News, motivation, actionable insights
-- 💪 **workout**: High energy, powerful language
-- 🚗 **commute**: Informative, easy to follow
-- 🌙 **wind_down**: Calm, soothing, thoughtful
-- 🎯 **focus_work**: Background-friendly, steady
-- 📚 **learning**: Detailed, educational
+- morning_routine: News, motivation, actionable insights
+- workout: High energy, powerful language
+- commute: Informative, easy to follow
+- wind_down: Calm, soothing, thoughtful
+- focus_work: Background-friendly, steady
+- learning: Detailed, educational
 
 ## What's Next?
 
@@ -312,5 +312,5 @@ npm start generate -- --channels tech,finance,f1 --duration 5
 npm start test-agent -- --channel tech
 ```
 
-Have fun exploring the agentic system! 🚀
+Have fun exploring the agentic system!
 
