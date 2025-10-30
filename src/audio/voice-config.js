@@ -3,6 +3,12 @@
  * 
  * Defines voice settings optimized for different podcast settings.
  * Uses ElevenLabs v3 with support for audio tags.
+ * 
+ * NOTE: v3 requires Instant Voice Clones (IVCs) or designed voices.
+ * Professional Voice Clones (PVCs) are not yet optimized for v3.
+ * Current voices used:
+ * - George (JBFqnCBsd6RMkjVDRZzb): Designed voice - v3 compatible
+ * - Dorothy (ThT5KcBeYPX3keUQqHPh): Designed voice - v3 compatible
  */
 
 export const VOICE_CONFIGS = {

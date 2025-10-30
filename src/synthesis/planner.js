@@ -48,7 +48,7 @@ export class PodcastPlanner {
     const custom = customReport?.report ? `\n\n# Custom\n${customReport.report}` : '';
 
     const wordsTarget = duration * 160;
-    const sectionsApprox = Math.max(3, Math.min(8, Math.round(duration * 1.5)));
+    const sectionsApprox = Math.max(3, Math.min(6, Math.round(duration * 1.2)));
 
     const prompt = `You are a planning assistant for a podcast script. Today is ${new Date().toDateString()}.
 
@@ -78,24 +78,46 @@ JSON SCHEMA:
 CONSTRAINTS:
 - Total approx_words across sections should be ~${wordsTarget} (+/- 15%).
 - Include an "intro" section first and a "closing" section last.
-- Limit to about ${sectionsApprox} sections total.
+- Limit to ${sectionsApprox} sections total (prefer fewer, longer sections over many short ones).
+- Each content section should be AT LEAST 120 words to allow proper narrative development.
+- Group related topics into single sections (e.g., all tech news together, not split across multiple sections).
 - Use only information from the reports to select content_refs.
 Return ONLY valid JSON per the schema above. No prose, no code fences.`;
 
-    // First attempt
+    // First attempt - capture token usage from response metadata
+    let tokenUsage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
+    
     const response = await this.llm.invoke(prompt);
     let text = typeof response === 'string' ? response : (response?.content || '');
+    
+    // Extract token usage from response
+    const usage = response.usage_metadata || response.response_metadata?.tokenUsage;
+    if (usage) {
+      tokenUsage.promptTokens += usage.input_tokens || usage.promptTokens || 0;
+      tokenUsage.completionTokens += usage.output_tokens || usage.completionTokens || 0;
+      tokenUsage.totalTokens += usage.total_tokens || usage.totalTokens || 0;
+    }
+    
     try {
       const plan = JSON.parse(text);
-      return { plan, raw: text };
+      return { plan, raw: text, tokenUsage };
     } catch (e) {
       // Single retry with stricter instruction
       const retryPrompt = `${prompt}\n\nReminder: Return ONLY valid JSON matching the schema. No prose.`;
       const retryResp = await this.llm.invoke(retryPrompt);
       const retryText = typeof retryResp === 'string' ? retryResp : (retryResp?.content || '');
+      
+      // Add retry token usage
+      const retryUsage = retryResp.usage_metadata || retryResp.response_metadata?.tokenUsage;
+      if (retryUsage) {
+        tokenUsage.promptTokens += retryUsage.input_tokens || retryUsage.promptTokens || 0;
+        tokenUsage.completionTokens += retryUsage.output_tokens || retryUsage.completionTokens || 0;
+        tokenUsage.totalTokens += retryUsage.total_tokens || retryUsage.totalTokens || 0;
+      }
+      
       try {
         const plan = JSON.parse(retryText);
-        return { plan, raw: retryText };
+        return { plan, raw: retryText, tokenUsage };
       } catch (e2) {
         log.warn('Planner returned non-JSON after retry, using minimal plan');
         return {
@@ -108,6 +130,7 @@ Return ONLY valid JSON per the schema above. No prose, no code fences.`;
             ],
           },
           raw: `${text}\n\n--- RETRY ---\n\n${retryText}`,
+          tokenUsage,
         };
       }
     }

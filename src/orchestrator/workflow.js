@@ -27,7 +27,16 @@ export class PodcastWorkflow {
     this.results = {
       channelReports: {},
       customReport: null,
-      metadata: {},
+      metadata: {
+        tokenUsage: {
+          agents: {},
+          synthesis: {
+            planner: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
+            writer: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
+          },
+          total: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
+        },
+      },
     };
   }
 
@@ -140,9 +149,14 @@ export class PodcastWorkflow {
         );
       }
 
-      // Store results
+      // Store results and aggregate token usage
       for (const result of results) {
         this.results.channelReports[result.channelId] = result;
+        
+        // Track agent token usage
+        if (result.tokenUsage) {
+          this.results.metadata.tokenUsage.agents[result.channelId] = result.tokenUsage;
+        }
       }
 
       // Log summary
@@ -353,22 +367,31 @@ export class PodcastWorkflow {
     this.progress.beginStage('plan_and_write');
 
     try {
-      const { plan, raw } = await planPodcast({
+      const { plan, raw, tokenUsage: plannerTokens } = await planPodcast({
         channelReports: this.results.channelReports,
         customReport: this.results.customReport,
         setting,
         duration,
       });
 
+      // Track planner tokens
+      this.results.metadata.tokenUsage.synthesis.planner = plannerTokens;
+
       let script = '';
       for (const section of plan.sections) {
-        const sectionText = await writeOneSection({
+        const { text: sectionText, tokenUsage: sectionTokens } = await writeOneSection({
           plan,
           section,
           setting,
           currentScript: script,
           channelReports: this.results.channelReports,
         });
+        
+        // Accumulate writer tokens
+        this.results.metadata.tokenUsage.synthesis.writer.promptTokens += sectionTokens.promptTokens;
+        this.results.metadata.tokenUsage.synthesis.writer.completionTokens += sectionTokens.completionTokens;
+        this.results.metadata.tokenUsage.synthesis.writer.totalTokens += sectionTokens.totalTokens;
+        
         script = script ? `${script}\n\n${sectionText}` : sectionText;
         this.progress.updateProgress(`Wrote section: ${section.id}`, { title: section.title, words: section.approx_words });
       }
@@ -389,10 +412,38 @@ export class PodcastWorkflow {
    * @returns {Object} Complete workflow results
    */
   getResults() {
+    // Calculate total token usage
+    this.calculateTotalTokenUsage();
+    
     return {
       ...this.results,
       summary: this.getResultsSummary(),
     };
+  }
+
+  /**
+   * Calculate and update total token usage across all components
+   */
+  calculateTotalTokenUsage() {
+    const total = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
+    
+    // Sum agent tokens
+    for (const channelId in this.results.metadata.tokenUsage.agents) {
+      const usage = this.results.metadata.tokenUsage.agents[channelId];
+      total.promptTokens += usage.promptTokens || 0;
+      total.completionTokens += usage.completionTokens || 0;
+      total.totalTokens += usage.totalTokens || 0;
+    }
+    
+    // Sum synthesis tokens (planner + writer)
+    const planner = this.results.metadata.tokenUsage.synthesis.planner;
+    const writer = this.results.metadata.tokenUsage.synthesis.writer;
+    
+    total.promptTokens += planner.promptTokens + writer.promptTokens;
+    total.completionTokens += planner.completionTokens + writer.completionTokens;
+    total.totalTokens += planner.totalTokens + writer.totalTokens;
+    
+    this.results.metadata.tokenUsage.total = total;
   }
 
   /**

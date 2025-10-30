@@ -16,6 +16,7 @@ import { executeWorkflow } from '../../src/orchestrator/workflow.js';
 import { synthesizeScript } from '../../src/synthesis/editor.js';
 import { generateAudio } from '../../src/audio/generator.js';
 import { getAllChannels } from '../../src/agents/channel-registry.js';
+import { calculateWorkflowCost, formatCost } from '../../src/utils/token-cost.js';
 
 const log = logger.child('CLI:Generate');
 
@@ -189,6 +190,31 @@ function displayAgentSummary(results) {
   }
   
   console.log(chalk.gray('  Custom requests:'), summary.customRequestStatus);
+  
+  // Display token usage and cost
+  if (results.metadata?.tokenUsage) {
+    try {
+      const costs = calculateWorkflowCost(results, config.openaiModel, config.openaiSynthesisModel);
+      const totalTokens = results.metadata.tokenUsage.total;
+      
+      console.log(chalk.bold('\nToken Usage & Cost:'));
+      console.log(chalk.gray('  Total tokens:'), totalTokens.totalTokens.toLocaleString());
+      console.log(chalk.gray('    Prompt:'), totalTokens.promptTokens.toLocaleString());
+      console.log(chalk.gray('    Completion:'), totalTokens.completionTokens.toLocaleString());
+      console.log(chalk.gray('  Estimated cost:'), chalk.cyan(formatCost(costs.total.totalCost)));
+      
+      // Show breakdown
+      const agentTotal = Object.values(costs.agents).reduce((sum, c) => sum + c.totalCost, 0);
+      const synthesisTotal = (costs.synthesis.planner?.totalCost || 0) + (costs.synthesis.writer?.totalCost || 0);
+      
+      console.log(chalk.gray('    Agents:'), formatCost(agentTotal));
+      console.log(chalk.gray('    Synthesis:'), formatCost(synthesisTotal));
+    } catch (error) {
+      // Silently fail if cost calculation fails
+      console.log(chalk.gray('  Token tracking enabled'));
+    }
+  }
+  
   console.log();
 }
 

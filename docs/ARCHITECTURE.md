@@ -40,21 +40,19 @@ User Request
 - Isolation: One agent failure doesn't crash entire system
 - Scalability: Easy to add new channels/agents
 
-### 2. Research Modes: Deterministic vs. ReAct
+### 2. ReAct Agents (Reasoning + Acting)
 
-There are two research paths:
+The system uses **LangChain ReAct agents** for research:
 
-- **Deterministic Pipeline (default)**
-  - Fixed, predictable steps per channel: date-stamped search → scrape first accessible result(s) → summarize.
-  - Bounded budgets (e.g., 3 searches, 1 scrape) for stability and speed.
-  - Parallelized per batch with configurable concurrency.
-  - Resilient: fast-fails on 401/403/404/451; retries only transient errors.
+- Agent plans tool usage (search/scrape) iteratively based on what it learns
+- Max iterations and timeouts prevent runaway loops
+- Tools have built-in budgets (e.g., max 3 searches) for cost control
+- Flexible and intelligent - adapts search strategy based on findings
 
-- **LangChain ReAct (Reasoning + Acting)**
-  - Agent plans tools (search/scrape) iteratively (max iterations configurable).
-  - More flexible, but can be slower/less predictable.
+**Note on Development Journey:**
+Early in development, ReAct agents were getting stuck or producing inconsistent results. I built a deterministic search pipeline as a fallback (fixed sequence: date-stamped search → scrape → summarize). However, after iterating on agent prompts—adding explicit search strategies, clear budgets, and structured output formats—the ReAct agents now work reliably. The deterministic code remains in the codebase (`--deterministic` flag) but is no longer needed.
 
-ReAct loop (when enabled):
+ReAct loop:
 
 ```
 Agent receives task
@@ -97,15 +95,49 @@ Agent receives task
 └─────────────────────────────┘
 ```
 
-**Why two modes?**
-- Deterministic: stable demos, reliable timelines, minimal nondeterminism.
-- ReAct: exploratory depth when needed, at the cost of more variability.
-- Self-directed: Agent decides what to do next
-- Tool usage: Can use multiple tools intelligently
-- Reasoning visible: Can see agent's thought process
-- Proven pattern: Well-researched and effective
+**Why ReAct?**
+- **Self-directed**: Agent decides what to do next based on what it learns
+- **Intelligent tool usage**: Can search multiple times, scrape when needed, adapt strategy
+- **Reasoning visible**: Can see agent's thought process in logs
+- **Proven pattern**: Well-researched and effective for research tasks
+- **Reliable with constraints**: Bounded iterations + tool budgets prevent runaway loops
 
-### 3. Reliability Patterns
+### 3. Adaptive Search Strategies (Breadth vs. Depth)
+
+**Problem:** Generic prompts produce inconsistent coverage—agents either fixate on one narrow topic or superficially mention too many stories.
+
+**Solution:** Each agent now chooses a search strategy based on initial findings:
+
+```
+Agent performs initial search
+    │
+    ▼
+Analyzes results
+    │
+    ├─→ ONE dominant story?     → STRATEGY A: Deep Dive (all 3 searches on one topic)
+    ├─→ MULTIPLE stories?       → STRATEGY B: Balanced Coverage (2-3 topics)
+    └─→ Breaking/crisis news?   → STRATEGY C: Specialized Focus
+```
+
+**Example (Finance Agent):**
+- **Strategy A - Major Market Event**: Fed rate decision → 3 searches on Fed → 280-350 words deep dive
+- **Strategy B - Market Roundup**: Mixed day → Search 1 (overview) + Search 2 (earnings) + Search 3 (crypto) → 100-120 words per topic
+- **Strategy C - Sector Focus**: Tech stocks driving market → 3 searches on tech sector → deep sector analysis
+
+**Example (F1 Agent):**
+- **Strategy A - Race Weekend Deep Dive**: Race happening this weekend → qualifying + race results → detailed race coverage
+- **Strategy B - Two Stories**: Off-season → driver signing + team announcement → balanced coverage of both
+- **Strategy C - Upcoming Preview**: Race next week → track preview + championship standings → race buildup
+
+**Benefits:**
+- **Appropriate depth**: Major stories get full treatment; quiet days get diverse coverage
+- **No repetition**: Agent knows when to go deep vs. broad
+- **Better utilization**: 3 searches + 300 words optimally allocated based on content
+- **Clear decision framework**: Agent explicitly chooses and follows a strategy
+
+**Implementation:** Each channel prompt includes 3 strategy templates. After the initial search, the agent explicitly declares which strategy it will follow, then executes that search pattern.
+
+### 4. Reliability Patterns
 
 #### Circuit Breaker Pattern
 
@@ -216,7 +248,7 @@ And in Formula 1..."
 ```
 
 **Benefits:**
-- Deterministic control over outline and length
+- Structured control over outline and length
 - Clear traceability from plan to script
 - Easier to recover if one section fails (write next)
 - JSON plan is saved (plan + planRaw) for debugging
@@ -245,7 +277,7 @@ Clear module boundaries:
 - Reusability: Utilities used across layers
 - Clarity: Clear responsibilities
 
-## Data Flow (Deterministic Mode)
+## Data Flow
 
 ### Complete Request Flow
 
@@ -253,7 +285,7 @@ Clear module boundaries:
 1. User runs CLI wizard or generate
    npm start init  (interactive)
    # or
-   npm start generate -- --channels tech,finance --duration 5 --deterministic
+   npm start generate -- --channels tech,finance --duration 5
 
 2. CLI parses arguments
    channels: ['tech', 'finance']
@@ -271,15 +303,15 @@ Clear module boundaries:
 4. Execute Workflow
    orchestrator.execute()
 
-5. Deterministic Research per Channel (parallel per batch)
-   ├─→ tech: search (time_range='day') → scrape first accessible → summarize
-   └─→ finance: search (time_range='day') → scrape first accessible → summarize
+5. ReAct Agent Research per Channel (parallel with concurrency control)
+   ├─→ tech agent: reasons about search strategy → searches → scrapes → synthesizes report
+   └─→ finance agent: reasons about search strategy → searches → scrapes → synthesizes report
 
 6. Collect Agent Results
    workflowResults = {
      channelReports: {
-       tech: { report: "...", status: "success" },
-       finance: { report: "...", status: "success" }
+       tech: { report: "...", status: "success", tokenUsage: {...} },
+       finance: { report: "...", status: "success", tokenUsage: {...} }
      },
      customReport: null
    }
@@ -287,15 +319,15 @@ Clear module boundaries:
 7. Plan & Iterative Write
    ├─→ Planner (JSON mode): overview + sections (id, title, goal, approx_words, content_refs)
    ├─→ Writer iterates sections → appends to final script
-   └─→ plan + planRaw saved into agent-reports.json
+   └─→ plan + planRaw + tokenUsage saved into agent-reports.json
 
 8. Save Outputs
    output/
    └── 2025-01-15T10-30-00-000Z/
-       ├── agent-reports.json
+       ├── agent-reports.json  (includes token usage metadata)
        └── script.txt
 
-9. Display Results to User
+9. Display Results to User (with token usage & cost estimates)
 ```
 
 ## Error Handling Strategy
@@ -329,16 +361,16 @@ Only fail: Invalid configuration (user error)
 
 ### Typical Timings
 
-- **Deterministic research**: ~15–45s per channel (network-dependent)
-- **Parallel batches**: wall time ≈ max(channel durations in a batch)
+- **Agent research**: ~20–60s per channel (varies with ReAct iterations and network)
+- **Parallel execution**: wall time ≈ max(channel durations in a batch)
 - **Plan & write**: ~20–35s for typical 5-minute script
-- **Total**: commonly 50–90s, varies by network and sources
+- **Total**: commonly 60–120s, varies by agent reasoning depth and network
 
 ### Optimization Strategies
 
 1. **Concurrency Control**
-   - Deterministic: parallelize channels per batch (default cap 2; configurable)
-   - ReAct: same batching with Promise.all
+   - Agents run in parallel batches (default cap: 2, configurable)
+   - Prevents overwhelming external APIs
    - Recommendation: 1–3 for public sites to minimize 403/timeouts
 
 2. **Caching**
@@ -411,7 +443,7 @@ class FactCheckAgent extends BaseAgent {
 
 - Agent execution with mock tools
 - Workflow coordination
-- End-to-end pipeline with deterministic mode
+- End-to-end pipeline with ReAct agents
 
 ### Manual Testing
 
@@ -419,8 +451,8 @@ Currently using CLI commands:
 ```bash
 npm start test-agent -- --channel tech
 npm start test-search -- --query "test"
-npm start init                      # Interactive
-npm start generate -- --channels tech --duration 3 --deterministic
+npm start init                      # Interactive wizard
+npm start generate -- --channels tech --duration 3
 ```
 
 ## Security Considerations
@@ -445,33 +477,65 @@ npm start generate -- --channels tech --duration 3 --deterministic
 
 ## Future Enhancements
 
-1. **Distributed Execution**
+1. **Agent Historical Context & Memory**
+   - **Problem**: Agents currently have no memory of previous reports, leading to potential repetition and missing story continuations
+   - **Solution**: Pass previous N reports to agents as context
+   - **Implementation approach**:
+     ```javascript
+     // Pseudocode
+     const previousReports = await loadRecentReports(channelId, days: 7);
+     const prompt = `
+       Your previous reports from the last 7 days:
+       ${previousReports.map(r => `[${r.date}]: ${r.summary}`).join('\n')}
+       
+       Today's task: Research and report on NEW developments.
+       - If a story from your previous reports has updates, lead with "UPDATE:" and explain what changed
+       - Avoid repeating facts you already covered unless there are new developments
+       - Prioritize entirely new stories if no major updates exist
+     `;
+     ```
+   - **Benefits**:
+     - No repetition across days
+     - Natural story continuations ("UPDATE: Fed decision impact")
+     - Better context for ongoing stories (wars, trials, championships)
+     - Improved listener experience with coherent multi-day narrative
+   - **Challenges**:
+     - Token budget management (summaries vs. full reports)
+     - Storage and retrieval of historical reports
+     - Deciding how far back to look (recency vs. context tradeoff)
+   - **Not implementing yet** because it requires persistent storage design and careful prompt engineering to avoid hallucinated "updates"
+
+2. **Distributed Execution**
    - Run agents on different machines
    - Message queue for coordination
    - Horizontal scaling
 
-2. **Result Caching**
+3. **Result Caching**
    - Cache agent reports for recent queries
    - Time-based invalidation
    - Reduces API costs
 
-3. **Quality Metrics**
+4. **Quality Metrics**
    - Track agent success rates
    - Measure synthesis quality
    - A/B test different prompts
 
-4. **User Feedback Loop**
+5. **User Feedback Loop**
    - Rate generated podcasts
    - Improve prompts based on feedback
    - Personalization over time
 
-## Roadmap: Production-Grade Improvements
+## Roadmap:
 
 ### Near-term
 
-- **Default to deterministic mode** and keep ReAct behind a flag; vendor a local ReAct prompt if retained.
+- **Vendor ReAct prompt locally**: Remove dependency on `hwchase17/react` from Hub; tune for our tool budgets and grounding constraints.
 - **Structured I/O everywhere**: enforce JSON Schema (Zod/TypeBox) for planner and writer; validate/repair before use.
-- **Metrics & observability**: capture per-stage latency, token usage, tool counts, cache hits; persist next to `agent-reports.json`.
+- **Complete token tracking**: Implement custom agent loop to capture ReAct token usage (currently only tracking synthesis).
+- **Duration-aware agents**: Pass `duration` parameter to agents so they can adjust search depth and report length
+  - Short podcasts (3 min) → fewer searches (1-2), concise reports (200-250 words)
+  - Long podcasts (10+ min) → more searches (3-4), detailed reports (400-500 words)
+  - Agents dynamically scale research effort based on time budget
 - **Eval suite (smoke-level)**:
   - Planner JSON schema golden tests.
   - Writer length adherence and no-repeat checks.
@@ -513,9 +577,9 @@ npm start generate -- --channels tech --duration 3 --deterministic
 1. **Vendor prompt locally** if ReAct is kept; tune for our tool budgets and grounding constraints.
 2. **Introduce native function-calling** for `search` and `scrape`; remove `DynamicTool` glue.
 3. **Schema-first contracts**: planner and writer operate in JSON mode with schema validation.
-4. **De-scope LC** to optional experimentation path; deterministic + function-calling path becomes the default.
+4. **De-scope LC** to optional experimentation path; native function-calling becomes the primary approach.
 
-Status: deterministic path already implemented; function-calling agent is a targeted near-term replacement for ReAct.
+Status: ReAct agents currently work well with prompt engineering; function-calling is a targeted upgrade for better reliability and observability.
 
 ## Podcast Quality Evaluation Strategy (Idea)
 
@@ -546,14 +610,4 @@ Status: deterministic path already implemented; function-calling agent is a targ
 - **Golden sets**: a small curated set of topics with expected eval ranges to detect drift.
 - **Telemetry**: store eval reports alongside artifacts; track trends over time.
 
-## Conclusion
-
-This architecture demonstrates:
-- Clean separation of concerns
-- Production-ready reliability patterns
-- Extensible design
-- Clear data flow
-- Graceful error handling
-
-Perfect for showcasing in technical interviews or portfolio reviews.
 

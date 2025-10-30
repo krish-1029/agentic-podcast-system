@@ -48,20 +48,55 @@ export class SectionWriter {
 
 SETTING:\n${settingConfig.name} | Tone: ${settingConfig.tone} | Style: ${settingConfig.style} | Voice: ${settingConfig.voice}
 
-PLAN SECTION:
+FULL PLAN OVERVIEW:
+${plan.overview}
+
+YOUR CURRENT SECTION (${section.id}):
 ${JSON.stringify(section, null, 2)}
 
-ALREADY WRITTEN SCRIPT (do not repeat content; maintain continuity):
+ALREADY WRITTEN SCRIPT:
 ${currentScript || '(none yet)'}
+
+CRITICAL RULES:
+- DO NOT repeat facts or topics already covered in the script above
+- DO NOT re-explain things you already mentioned
+- If your section's topic was already covered, skip to a NEW angle or detail not yet mentioned
+- Provide smooth transitions from the previous section's ending
+- Stay focused on YOUR section's goal
 
 AVAILABLE FACTUAL MATERIAL (verbatim from agent reports; do not invent beyond these):
 ${reportsStr}
 
-TASK: Write ONLY the text for this section (no prefaces). Use ElevenLabs v3 audio tags where natural. Target ~${section.approx_words} words. Ensure clear, unambiguous facts that cannot be misinterpreted downstream.`;
+ELEVENLABS V3 AUDIO TAGS (use varied tags naturally throughout your section):
+Emotional states: [excited], [nervous], [frustrated], [sorrowful], [calm]
+Reactions: [sigh], [laughs], [gulps], [gasps], [whispers]
+Cognitive beats: [pauses], [hesitates], [stammers], [resigned tone]
+Tone cues: [cheerfully], [flatly], [deadpan], [playfully]
+
+AUDIO TAG GUIDELINES:
+- Use 3-5 DIFFERENT tags per section for variety
+- Place tags at natural points (before sentences or phrases they modify)
+- Do NOT reuse the same 2 tags repeatedly - mix emotional states, reactions, cognitive beats, and tone cues
+- Examples: "[excited] This breakthrough changes everything!" or "The results [pauses] weren't what anyone expected [nervous]"
+
+TASK: Write ONLY the text for this section (no prefaces). Use ElevenLabs v3 audio tags naturally and with variety. Target ~${section.approx_words} words. Create natural transitions from what came before. Ensure clear, unambiguous facts that cannot be misinterpreted downstream.`;
 
     const response = await this.llm.invoke(prompt);
     const text = typeof response === 'string' ? response : (response?.content || '');
-    return text.trim();
+    
+    // Extract token usage from response metadata
+    const tokenUsage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
+    const usage = response.usage_metadata || response.response_metadata?.tokenUsage;
+    if (usage) {
+      tokenUsage.promptTokens = usage.input_tokens || usage.promptTokens || 0;
+      tokenUsage.completionTokens = usage.output_tokens || usage.completionTokens || 0;
+      tokenUsage.totalTokens = usage.total_tokens || usage.totalTokens || 0;
+    }
+    
+    return {
+      text: text.trim(),
+      tokenUsage,
+    };
   }
 }
 

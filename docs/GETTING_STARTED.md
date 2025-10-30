@@ -80,18 +80,18 @@ You’ll choose:
 - Duration
 - Audio (y/N)
 
-Runs deterministic by default.
+Runs ReAct agents by default (uses LangChain agent with tool calling).
 
 ### 6. Generate Your First Podcast (Direct)
 
 Let's create a simple 3-minute tech podcast:
 
 ```bash
-npm start generate -- --channels tech --duration 3 --deterministic
+npm start generate -- --channels tech --duration 3
 ```
 
-**What happens (deterministic):**
-1. Per-channel research: date-stamped search → scrape first accessible result(s) → summarize
+**What happens:**
+1. Per-channel research: ReAct agents search → scrape → reason → synthesize report
 2. Planner produces JSON plan (saved as plan + planRaw in agent-reports.json)
 3. Section Writer iterates through plan to write the script
 4. Saves to `output/<timestamp>/script.txt`
@@ -104,7 +104,7 @@ This should take about 30-45 seconds.
 
 ```bash
 # Single channel, 5 minutes
-npm start generate -- --channels tech --duration 5 --deterministic
+npm start generate -- --channels tech --duration 5
 
 # Multiple channels
 npm start generate -- --channels tech,finance,f1 --duration 7
@@ -130,7 +130,7 @@ npm start list
 
 ```bash
 # Morning routine (energetic)
-npm start generate -- --channels tech,finance --setting morning_routine --deterministic
+npm start generate -- --channels tech,finance --setting morning_routine
 
 # Workout (high-energy)
 npm start generate -- --channels tech --setting workout --duration 5
@@ -144,7 +144,7 @@ npm start generate -- --channels science --setting wind_down --duration 5
 If you have an ElevenLabs API key configured:
 
 ```bash
-npm start generate -- --channels tech,f1 --duration 5 --deterministic --audio
+npm start generate -- --channels tech,f1 --duration 5 --audio
 ```
 
 This generates both `script.txt` and `podcast.mp3`.
@@ -180,7 +180,8 @@ cat output/<latest-timestamp>/agent-reports.json | jq
 ```
 
 This shows:
-- Which channels ran and their method (deterministic/agent)
+- Which channels ran and their research results
+- Token usage and cost estimates for synthesis
 - Planner outputs: `plan` (parsed JSON) and `planRaw` (original text)
 - Success/failure status and timing information
 
@@ -278,7 +279,7 @@ npm start generate -- --channel science --setting learning --duration 10
 
 Start with:
 1. `src/orchestrator/workflow.js` - See how agents are coordinated
-2. `src/agents/deterministic-research.js` - Deterministic research pipeline
+2. `src/agents/base-agent.js` - ReAct agent implementation with LangChain
 3. `src/synthesis/planner.js` & `src/synthesis/writer.js` - Plan & iterative write
 
 ### Read Architecture Docs

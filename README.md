@@ -96,7 +96,7 @@ npm start init
 
 ```bash
 # Generate a 5-minute tech and finance podcast
-npm start generate -- --channels tech,finance --duration 5 --deterministic
+npm start generate -- --channels tech,finance --duration 5
 
 # With custom requests
 npm start generate -- --channels tech --requests "latest AI models" --duration 7
@@ -140,7 +140,7 @@ npm start test-search -- --query "latest technology news"
 
 ```bash
 # Morning routine (energetic and uplifting)
-npm start generate -- --channels tech,finance --setting morning_routine --deterministic
+npm start generate -- --channels tech,finance --setting morning_routine
 
 # Workout (high-energy and motivational)
 npm start generate -- --channels tech,f1 --setting workout
@@ -165,16 +165,12 @@ npm start test-agent -- --channel tech
 
 ### Full Pipeline Test
 ```bash
-npm start generate -- --channels tech --duration 3 --deterministic
+npm start generate -- --channels tech --duration 3
 ```
 
 ## Architecture Details
 
-### Research Modes
-
-**Deterministic (default):** date-stamped search → scrape first accessible → summarize (bounded budgets).
-
-**ReAct (optional):** LangChain ReAct agent that plans tool usage iteratively.
+The system uses **LangChain ReAct agents** for intelligent research. Agents reason about what to search for, analyze results, and decide whether to search more or scrape articles.
 
 The **orchestrator** coordinates:
 - Parallel agent execution with concurrency control
@@ -280,7 +276,7 @@ LOG_LEVEL=info                     # debug, info, warn, error
 # Agent Settings
 AGENT_TIMEOUT_MS=45000             # 45 seconds
 AGENT_MAX_ITERATIONS=6             # Max tool calls
-CONCURRENCY_LIMIT=2                 # Parallel channels per batch (deterministic honors this)
+CONCURRENCY_LIMIT=2                 # Parallel agent executions per batch
 
 # Circuit Breaker
 CIRCUIT_BREAKER_THRESHOLD=3        # Failures before opening

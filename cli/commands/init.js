@@ -12,7 +12,7 @@ function prompt(query) {
 
 export async function initCommand() {
   const spinner = ora();
-  console.log(chalk.bold.cyan('\n🧰 Podcast Generator Wizard (deterministic by default)\n'));
+  console.log(chalk.bold.cyan('\n🧰 Podcast Generator Wizard (ReAct agents by default)\n'));
 
   // 1) Listening context (setting)
   const settings = getAllSettings();
@@ -58,8 +58,8 @@ export async function initCommand() {
   const audioAns = (await prompt(chalk.gray('> '))).trim().toLowerCase();
   const audio = audioAns === 'y' || audioAns === 'yes';
 
-  // 6) Deterministic (default yes)
-  const deterministic = true;
+  // 6) Use ReAct agents (default)
+  const deterministic = false;
 
   console.log('\n');
   spinner.start('Generating podcast...');

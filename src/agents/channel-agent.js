@@ -54,21 +54,23 @@ export class ChannelAgent extends BaseAgent {
       // Get channel-specific prompt
       const prompt = this.channel.getPrompt(customRequests);
 
-      // Execute agent
-      const report = await this.execute(prompt);
+      // Execute agent - now returns object with output, tokenUsage, and duration
+      const result = await this.execute(prompt);
 
       const duration = Date.now() - startTime;
 
       this.log.success(`Research complete for ${this.channelId}`, {
         duration: `${duration}ms`,
-        reportLength: `${report.length} chars`,
+        reportLength: `${result.output.length} chars`,
+        totalTokens: result.tokenUsage.totalTokens,
       });
 
       return {
         channelId: this.channelId,
         channelName: this.channel.name,
-        report,
+        report: result.output,
         duration,
+        tokenUsage: result.tokenUsage,
         status: 'success',
         method: 'agent',
         timestamp: new Date().toISOString(),
